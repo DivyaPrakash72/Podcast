@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>🎧 Podcast Video Call</title>
+  <style>
+    body {
+      background: #0f172a;
+      color: white;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    video {
+      width: 45%;
+      margin: 10px;
+      border-radius: 12px;
+      background: black;
+    }
+    button, input {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #1e40af; }
+    #recordingStatus { color: #22c55e; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Podcast Video Call & Recorder</h1>
+
+  <input id="roomInput" placeholder="Enter room name" />
+  <button onclick="joinRoom()">Join</button>
+  <button onclick="startRecording()">Start Recording</button>
+  <button onclick="stopRecording()">Stop & Save</button>
+  <p id="recordingStatus"></p>
+
+  <div>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+
+  <script>
+    let peerConnection;
+    let localStream;
+    let remoteStream;
+    let dataChannel;
+    let recorder;
+    let recordedChunks = [];
+    let roomName = "";
+
+    const localVideo = document.getElementById("localVideo");
+    const remoteVideo = document.getElementById("remoteVideo");
+    const statusEl = document.getElementById("recordingStatus");
+
+    async function joinRoom() {
+      roomName = document.getElementById("roomInput").value.trim();
+      if (!roomName) return alert("Enter a room name");
+
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideo.srcObject = localStream;
+
+      peerConnection = new RTCPeerConnection();
+
+      remoteStream = new MediaStream();
+      remoteVideo.srcObject = remoteStream;
+
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      peerConnection.ontrack = event => remoteStream.addTrack(event.track);
+
+      // Use localStorage as fake signaling (works only on same browser)
+      const roomKey = `room-${roomName}`;
+
+      if (localStorage.getItem(roomKey)) {
+        const offer = JSON.parse(localStorage.getItem(roomKey));
+        await peerConnection.setRemoteDescription(offer);
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        localStorage.setItem(roomKey + "-answer", JSON.stringify(answer));
+      } else {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        localStorage.setItem(roomKey, JSON.stringify(offer));
+        alert("Now open another tab and join with the same room name.");
+      }
+
+      const checkAnswer = setInterval(async () => {
+        const answerData = localStorage.getItem(roomKey + "-answer");
+        if (answerData && !peerConnection.currentRemoteDescription) {
+          await peerConnection.setRemoteDescription(JSON.parse(answerData));
+          clearInterval(checkAnswer);
+        }
+      }, 1000);
+    }
+
+    // Recording functionality
+    function startRecording() {
+      if (!localStream) return alert("Join a room first!");
+      recordedChunks = [];
+      recorder = new MediaRecorder(localStream, { mimeType: "video/webm; codecs=vp9" });
+
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+      recorder.onstop = saveRecording;
+
+      recorder.start();
+      statusEl.textContent = "🎬 Recording started...";
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+        statusEl.textContent = "✅ Recording stopped. Saving...";
+      }
+    }
+
+    function saveRecording() {
+      const blob = new Blob(recordedChunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `podcast_${roomName}.webm`;
+      a.click();
+      statusEl.textContent = "💾 Podcast saved!";
+    }
+  </script>
+</body>
+</html>
