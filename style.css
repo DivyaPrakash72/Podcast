@@ -1,0 +1,57 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: #fff;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  padding: 50px;
+}
+
+input {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  width: 60%;
+  margin: 10px;
+}
+
+button {
+  padding: 10px 15px;
+  margin: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.room-container {
+  padding: 20px;
+}
+
+#videos {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+video {
+  width: 45%;
+  border-radius: 10px;
+  background: black;
+}
+
+.controls {
+  margin-top: 20px;
+}
+
+.back {
+  display: block;
+  margin-top: 30px;
+  color: #ccc;
+  text-decoration: none;
+}
